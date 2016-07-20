@@ -121,15 +121,17 @@ class SNOPT_solver(object):
 
         xnames     is an array of names for the x-variables (default '')
         xstate     is an array of names for the x-variables (default 0)
-        x          are the intial values of x (default 0.0)
+        x0         are the intial values of x (default 0.0)
         xlow       are the lower bounds of x (default -infinity)
         xupp       are the upper bounds of x (default +infinity)
+        xmul       are the initial multipliers for x (default 0)
 
         Fnames     is an array of names for the F-variables (default '')
         Fstate     is an array of names for the F-variables (default 0)
         F          are the intial value of F (default 0.0)
         Flow       are the lower bounds of F (default -infinity)
         Fupp       are the upper bounds of F (default +infinity)
+        Fmul       are the initial multipliers for F (default 0)
 
 
         """
@@ -150,11 +152,13 @@ class SNOPT_solver(object):
         x       = kwargs.get('x0',None)
         xlow    = kwargs.get('xlow',None)
         xupp    = kwargs.get('xupp',None)
+        xmul    = kwargs.get('xmul',None)
 
         Fstate  = kwargs.get('Fstate',None)
         F       = kwargs.get('F',None)
         Flow    = kwargs.get('Flow',None)
         Fupp    = kwargs.get('Fupp',None)
+        Fmul    = kwargs.get('Fmul',None)
 
         if n is 0:
             nx      = 0 if x      is None else x.size
@@ -301,10 +305,10 @@ class SNOPT_solver(object):
             print '  Could not determine Jacobian structure from user input'
             print '  Calling snJac...'
 
-            len   = nF*n
+            lena   = nF*n
             count = 1
             while True:
-                snjac = snopt.snjac_wrap(nF,usrfun,len,len,\
+                snjac = snopt.snjac_wrap(nF,usrfun,lena,lena,\
                                          x,xlow,xupp,cu,iu,ru,\
                                          self.cw,self.iw,self.rw)
                 info  = snjac[0]
@@ -333,8 +337,13 @@ class SNOPT_solver(object):
                     self.resizeW(mincw,miniw,minrw)
 
         else:
-            iAfun = np.array([1]) if neA == 0 else iAfun + 1
-            jAvar = np.array([1]) if neA == 0 else jAvar + 1
+            if neA == 0:
+                iAfun = np.array([1])
+                jAvar = np.array([1])
+                A = np.array([0])
+            else:
+                iAfun += 1
+                jAvar += 1
 
             iGfun = np.array([1]) if neG == 0 else iGfun + 1
             jGvar = np.array([1]) if neG == 0 else jGvar + 1
@@ -382,8 +391,10 @@ class SNOPT_solver(object):
                 print ' --> Upper bounds on F not provided; setting to +inf'
             Fupp =  inf*np.ones(nF,float)
 
-        xmul = np.zeros(n,float)
-        Fmul = np.zeros(nF,float)
+        if xmul is None:
+            xmul = np.zeros(n,float)
+        if Fmul is None:
+            Fmul = np.zeros(nF,float)
 
 
         # Solve problem
